@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Year {
+  id        Int        @id @default(autoincrement())
+  name      String // اسم السنة (مثل "السنة الأولى")
+  semesters Semester[]
+}
+
+model Semester {
+  id     Int    @id @default(autoincrement())
+  name   String // اسم الترم (مثل "الترم الأول")
+  yearId Int
+  year   Year   @relation(fields: [yearId], references: [id])
+  units  Unit[]
+}
+
+model Unit {
+  id         Int      @id @default(autoincrement())
+  name       String // اسم الوحدة (مثل "الوحدة الأولى")
+  semesterId Int
+  semester   Semester @relation(fields: [semesterId], references: [id])
+  lessons    Lesson[]
+}
+
+model Lesson {
+  id     Int    @id @default(autoincrement())
+  title  String // عنوان الدرس
+  pptUrl String // رابط ملف الـ PPT
+  unitId Int
+  unit   Unit   @relation(fields: [unitId], references: [id])
+}
