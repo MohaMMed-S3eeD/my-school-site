@@ -32,7 +32,7 @@ model Unit {
 model Lesson {
   id     Int    @id @default(autoincrement())
   title  String // عنوان الدرس
-  pptUrl String // رابط ملف الـ PPT
+  pptFileName String // رابط ملف الـ PPT
   unitId Int
   unit   Unit   @relation(fields: [unitId], references: [id])
 }
