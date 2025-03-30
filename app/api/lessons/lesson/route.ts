@@ -4,22 +4,23 @@ import path from 'path';
 
 export async function GET(req: NextRequest) {
     try {
-        const fileName = req.nextUrl.searchParams.get('pptFileName') || 'default.html';
+        const fileName = req.nextUrl.searchParams.get('pptFileName') || 'default.pdf';
         if (!fileName) {
             return NextResponse.json({ error: 'File name is required' }, { status: 400 });
         }
 
-        // Ensure the file has .html extension
-        const htmlFileName = fileName.endsWith('.html') ? fileName : `${fileName}.html`;
+        // Ensure the file has .pdf extension
+        const pdfFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
         // Update the path to point to the correct data directory
-        const filePath = path.join(process.cwd(), 'app', 'api', 'lessons', 'lesson', 'data', htmlFileName);
+        const filePath = path.join(process.cwd(), 'app', 'api', 'lessons', 'lesson', 'data', pdfFileName);
         
-        const fileContent = await readFile(filePath, 'utf-8');
+        // Read the PDF file as binary data
+        const fileContent = await readFile(filePath);
         
-        // Return with HTML content type
+        // Return with PDF content type
         return new NextResponse(fileContent, {
             headers: {
-                'Content-Type': 'text/html'
+                'Content-Type': 'application/pdf'
             }
         });
     } catch (error) {

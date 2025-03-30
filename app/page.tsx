@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import LessonViewer from "./components/LessonViewer";
 
 interface Lesson {
   id: number;
@@ -37,7 +36,6 @@ export default function Home() {
   const [years, setYears] = useState<Year[]>([]);
   const [selectedYear, setSelectedYear] = useState<Year | null>(null);
   const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null);
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchYears = async () => {
@@ -53,18 +51,6 @@ export default function Home() {
     }
   };
 
-  const formatLessonFileName = (title: string) => {
-    return title
-      .replace(/:/g, '') // إزالة النقطتين تماماً
-      .replace(/\s+/g, '-') // استبدال المسافات بـ -
-      .replace(/[^\u0621-\u064A0-9a-zA-Z-]/g, ''); // الحفاظ على الحروف العربية والإنجليزية والأرقام والشرطات فقط
-  };
-
-  const fetchLessonContent = (lessonTitle: string) => {
-    const formattedFileName = formatLessonFileName(lessonTitle);
-    return `/api/lessons/lesson?pptFileName=${formattedFileName}`;
-  };
-
   useEffect(() => {
     fetchYears();
   }, []);
@@ -76,12 +62,11 @@ export default function Home() {
         label: selectedYear.name,
         onClick: () => {
           setSelectedSemester(null);
-          setSelectedLesson(null);
         },
       });
     }
     if (selectedSemester) {
-      items.push({ label: selectedSemester.name, onClick: () => setSelectedLesson(null) });
+      items.push({ label: selectedSemester.name });
     }
     return items;
   };
@@ -108,7 +93,6 @@ export default function Home() {
                 onClick={() => {
                   setSelectedYear(null);
                   setSelectedSemester(null);
-                  setSelectedLesson(null);
                 }}
                 className="hover:text-blue-300 transition-colors duration-300"
               >
@@ -276,9 +260,11 @@ export default function Home() {
                       ) : (
                         <div className="space-y-1.5 max-h-[280px] overflow-y-auto custom-scrollbar">
                           {unit.lessons.map((lesson) => (
-                            <button
+                            <a
                               key={lesson.id}
-                              onClick={() => setSelectedLesson(lesson)}
+                              href={`/lesson/${encodeURIComponent(lesson.title)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="w-full text-right p-2.5 rounded-lg glass-dark hover:bg-blue-500/10 transition-all flex items-center gap-2.5 group/item"
                             >
                               <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-300 group-hover/item:bg-blue-500/20 shrink-0">
@@ -290,12 +276,12 @@ export default function Home() {
                                 {lesson.title}
                               </span>
                               <span className="text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity text-xs flex items-center gap-1">
-                                عرض الدرس
+                                فتح الدرس
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
                               </span>
-                            </button>
+                            </a>
                           ))}
                         </div>
                       )}
@@ -305,42 +291,6 @@ export default function Home() {
               </div>
             )}
           </>
-        )}
-
-        {/* Lesson Modal */}
-        {selectedLesson && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setSelectedLesson(null);
-              }
-            }}
-          >
-            <div
-              className="glass-dark rounded-2xl w-full max-w-6xl h-[90vh] animate-scaleUp relative overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="absolute inset-0 flex flex-col">
-                <div className="flex justify-between items-center p-4 border-b border-white/10">
-                  <h3 className="text-2xl font-bold text-white pl-4">{selectedLesson.title}</h3>
-                  <button
-                    onClick={() => {
-                      setSelectedLesson(null);
-                    }}
-                    className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="flex-1 min-h-0">
-                  <LessonViewer lessonUrl={fetchLessonContent(selectedLesson.title)} />
-                </div>
-              </div>
-            </div>
-          </div>
         )}
       </main>
     </div>
