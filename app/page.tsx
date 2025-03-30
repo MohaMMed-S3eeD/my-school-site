@@ -41,7 +41,7 @@ export default function Home() {
   const fetchYears = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/years");
+      const response = await fetch("https://mr-ahmed1.vercel.app/api/years");
       const data: YearsResponse = await response.json();
       setYears(data.years);
     } catch (error) {
