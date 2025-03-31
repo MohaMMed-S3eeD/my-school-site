@@ -16,7 +16,7 @@ export default function LessonPage() {
       
       // Get the API url for the lesson content
       const formattedFileName = formatLessonFileName(decodedTitle);
-      setLessonUrl(`/api/lessons/lesson?pptFileName=${formattedFileName}`);
+      setLessonUrl(`https://mr-ahmed1.vercel.app/api/lessons/lesson?pptFileName=${formattedFileName}`);
     }
   }, [params]);
   
