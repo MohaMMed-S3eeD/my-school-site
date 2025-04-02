@@ -27,7 +27,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [showNotes, setShowNotes] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
-  const [notesAlignment, setNotesAlignment] = useState<string>('right');
+  const [notesAlignment, setNotesAlignment] = useState<'left' | 'center' | 'right'>('right');
   const [pageLoaded, setPageLoaded] = useState<boolean>(false);
   // Drawing states
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
@@ -128,8 +128,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
     }
   }, [pageNumber, pageLoaded, pdfUrl, scale]);
 
-  const handleAlignmentChange = (alignment: string) => {
-    setNotesAlignment(alignment);
+  const handleAlignmentChange = (alignment: 'left' | 'center' | 'right') => {
+    setNotesAlignment(alignment as 'left' | 'center' | 'right');
     
     if (textareaRef.current) {
       textareaRef.current.style.textAlign = alignment;
@@ -327,17 +327,22 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
 
           {isDrawingMode && !isEraser && (
             <>
-              <input
-                type="color"
-                value={drawingColor}
-                onChange={(e) => {
-                  setDrawingColor(e.target.value);
-                  if (contextRef.current) {
-                    contextRef.current.strokeStyle = e.target.value;
-                  }
-                }}
-                className="w-8 h-8 rounded cursor-pointer"
-              />
+              <label className="relative">
+                <span className="sr-only">اختر لون القلم</span>
+                <input
+                  type="color"
+                  value={drawingColor}
+                  onChange={(e) => {
+                    setDrawingColor(e.target.value);
+                    if (contextRef.current) {
+                      contextRef.current.strokeStyle = e.target.value;
+                    }
+                  }}
+                  className="w-8 h-8 rounded cursor-pointer"
+                  title="اختر لون القلم"
+                  aria-label="اختر لون القلم"
+                />
+              </label>
               <input
                 type="range"
                 min="1"
