@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Cairo } from "next/font/google";
+import { Tajawal } from "next/font/google";
 import React from "react";
 import { ThemeProvider } from "@/context/ThemeContext";
 import "./globals.css";
@@ -16,10 +16,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const cairo = Cairo({
+const tajawal = Tajawal({
   subsets: ["arabic"],
+  weight: ['400', '700'],
   display: "swap",
-  variable: "--font-cairo",
+  variable: "--font-tajawal",
 });
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable}>
+    <html lang="ar" dir="rtl" className={tajawal.variable}>
       <head>
         <Script 
           src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js" 
@@ -41,7 +42,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased ${cairo.className}`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
           {children}
