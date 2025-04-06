@@ -13,7 +13,7 @@ import {
   Minus, RectangleHorizontal, Circle, Square, PaintBucket,
   Undo, Redo, PanelLeftOpen,
   Download, Maximize, Minimize,
-  Brush, Palette, Trash2
+  Brush, Palette, Trash2, ArrowUpRight
 } from 'lucide-react';
 
 // Worker for PDF.js
@@ -45,7 +45,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
   const [isDrawingMode, setIsDrawingMode] = useState<boolean>(false);
   const [drawingColor, setDrawingColor] = useState<string>('#000000');
   const [drawingWidth, setDrawingWidth] = useState<number>(3);
-  const [currentTool, setCurrentTool] = useState<'pen' | 'highlighter' | 'eraser' | 'line' | 'rectangle' | 'circle' | null>(null);
+  const [currentTool, setCurrentTool] = useState<'pen' | 'highlighter' | 'eraser' | 'line' | 'rectangle' | 'circle' | 'arrow' | null>(null);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [drawingSnapshot, setDrawingSnapshot] = useState<ImageData | null>(null);
   const [isShapeFilled, setIsShapeFilled] = useState<boolean>(false);
@@ -255,6 +255,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
          context.lineCap = 'round'; 
          context.lineJoin = 'round';
         break;
+      case 'arrow':
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        break;
       case 'rectangle':
       case 'circle':
          context.lineCap = 'butt'; 
@@ -267,6 +271,27 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
         break;
     }
   }, [drawingColor, drawingWidth, currentTool]);
+
+  // --- Helper Function to Draw Arrow --- 
+  const drawArrow = useCallback((context: CanvasRenderingContext2D, fromX: number, fromY: number, toX: number, toY: number) => {
+      const headLength = Math.min(20, Math.max(10, drawingWidth * 3)); // Arrow head size based on line width
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+
+      // Draw the line
+      context.beginPath();
+      context.moveTo(fromX, fromY);
+      context.lineTo(toX, toY);
+      context.stroke();
+
+      // Draw the arrowhead
+      context.beginPath();
+      context.moveTo(toX, toY);
+      context.lineTo(toX - headLength * Math.cos(angle - Math.PI / 6), toY - headLength * Math.sin(angle - Math.PI / 6));
+      context.lineTo(toX - headLength * Math.cos(angle + Math.PI / 6), toY - headLength * Math.sin(angle + Math.PI / 6));
+      context.closePath(); // Close the arrowhead path
+      context.fillStyle = context.strokeStyle; // Use the current drawing color for fill
+      context.fill(); // Fill the arrowhead
+  }, [drawingWidth]); // Added drawingWidth dependency
 
   // --- Save/Load/Restore Drawing History --- 
   
@@ -469,15 +494,28 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
 
     if ('touches' in e) { // Touch event
-      if (e.touches.length > 0) {
-        return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-      }
+        if (e.touches.length > 0) {
+            // Use touches for touchstart and touchmove
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            // Use changedTouches for touchend/touchcancel
+            clientX = e.changedTouches[0].clientX;
+            clientY = e.changedTouches[0].clientY;
+        } else {
+            return null; // No touch information available
+        }
     } else { // Mouse event
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        clientX = e.clientX;
+        clientY = e.clientY;
     }
-    return null;
+
+    if (clientX === undefined || clientY === undefined) return null;
+
+    return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
   const startDrawing = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -496,13 +534,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
     setIsDrawingMode(true); // Ensure drawing mode is active
 
     setStartPoint(coords);
-    lastPoint.current = coords; 
-    applyCurrentToolSettings(); 
+    lastPoint.current = coords; // Initialize last point
+    applyCurrentToolSettings(); // Apply initial settings
 
     if (currentTool === 'pen' || currentTool === 'highlighter' || currentTool === 'eraser') {
       context.beginPath();
       context.moveTo(coords.x, coords.y);
-    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'arrow') {
       if(drawingSnapshot) setDrawingSnapshot(null); // Clear previous snapshot
       try { 
         setDrawingSnapshot(context.getImageData(0, 0, canvas.width, canvas.height));
@@ -511,7 +549,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
           setDrawingSnapshot(null);
       }
     }
-  }, [currentTool, isDrawing, applyCurrentToolSettings, drawingSnapshot]); // Removed getCoords from dependencies
+  }, [currentTool, isDrawing, applyCurrentToolSettings, drawingSnapshot]);
 
   const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !currentTool || !contextRef.current) return;
@@ -550,26 +588,27 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
       // Use quadratic curve for smoother lines
       context.quadraticCurveTo(lastPoint.current.x, lastPoint.current.y, midX, midY);
       context.stroke(); 
-      context.beginPath(); // Start new path segment
+      context.beginPath(); // Start new path segment for the next part
       context.moveTo(midX, midY); // Move to the midpoint for the next segment
       lastPoint.current = { x, y }; 
 
-    } else if ((currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') && drawingSnapshot && startPoint) {
+    } else if ((currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'arrow') && drawingSnapshot && startPoint) {
       context.putImageData(drawingSnapshot, 0, 0); // Restore snapshot
       context.beginPath(); 
       applyCurrentToolSettings(); // Apply current settings (color, width)
       if (currentTool === 'line') { context.moveTo(startPoint.x, startPoint.y); context.lineTo(x, y); }
       else if (currentTool === 'rectangle') { context.rect(startPoint.x, startPoint.y, x - startPoint.x, y - startPoint.y); }
       else if (currentTool === 'circle') { const r = Math.sqrt(Math.pow(x - startPoint.x, 2) + Math.pow(y - startPoint.y, 2)); context.arc(startPoint.x, startPoint.y, r, 0, Math.PI * 2); }
+      else if (currentTool === 'arrow') { drawArrow(context, startPoint.x, startPoint.y, x, y); }
       
-      if (isShapeFilled) {
+      if (isShapeFilled && (currentTool === 'rectangle' || currentTool === 'circle')) {
           context.fillStyle = context.strokeStyle; // Use stroke color for fill
           context.fill();
       }
       context.stroke();
       // Do not update lastPoint here for shapes, only update on stopDrawing/mouseUp/touchEnd
     }
-  }, [isDrawing, currentTool, drawingWidth, applyCurrentToolSettings, drawingSnapshot, startPoint, isShapeFilled]); // Removed getCoords
+  }, [isDrawing, currentTool, drawingWidth, applyCurrentToolSettings, drawingSnapshot, startPoint, isShapeFilled, drawArrow]);
 
   const stopDrawing = useCallback((e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !contextRef.current) return; 
@@ -581,47 +620,47 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
     if (!canvas) return;
 
     // Finalize Drawing Path for shapes if needed
-    if ((currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') && drawingSnapshot && startPoint) {
-        let finalCoords = lastPoint.current; // Use the last known point from 'draw' if event is undefined
+    if ((currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'arrow') && drawingSnapshot && startPoint) {
+        let finalCoords = lastPoint.current; // Initialize with the last point during drag
+        // Try to get more precise coordinates from the stop event (MouseUp/TouchEnd)
         if (e) {
             const coordsFromEvent = getCoords(e);
             if (coordsFromEvent) {
                  finalCoords = coordsFromEvent;
+                 lastPoint.current = finalCoords;
             }
         }
 
         if (finalCoords) {
-            context.putImageData(drawingSnapshot, 0, 0); // Restore original state
-            context.beginPath(); 
-            applyCurrentToolSettings(); 
+            context.putImageData(drawingSnapshot, 0, 0); // Restore original state before drawing the final shape
+            context.beginPath();
+            applyCurrentToolSettings();
             const finalX = finalCoords.x;
             const finalY = finalCoords.y;
 
             if (currentTool === 'line') { context.moveTo(startPoint.x, startPoint.y); context.lineTo(finalX, finalY); }
             else if (currentTool === 'rectangle') { context.rect(startPoint.x, startPoint.y, finalX - startPoint.x, finalY - startPoint.y); }
             else if (currentTool === 'circle') { const r = Math.sqrt(Math.pow(finalX - startPoint.x, 2) + Math.pow(finalY - startPoint.y, 2)); context.arc(startPoint.x, startPoint.y, r, 0, Math.PI * 2); }
+            else if (currentTool === 'arrow') { drawArrow(context, startPoint.x, startPoint.y, finalX, finalY); }
             
-            if (isShapeFilled) {
-                context.fillStyle = context.strokeStyle; // Use stroke color for fill
+            if (isShapeFilled && (currentTool === 'rectangle' || currentTool === 'circle')) {
+                context.fillStyle = context.strokeStyle;
                 context.fill();
             }
             context.stroke();
         }
     } else if (currentTool === 'pen' || currentTool === 'highlighter' || currentTool === 'eraser') {
-       // Freehand drawing is finalized during the 'draw' callback segments
-       context.closePath(); // Close the last path segment if any
-       context.globalCompositeOperation = 'source-over'; // Ensure correct composition mode
+       context.closePath();
+       context.globalCompositeOperation = 'source-over';
     }
 
-    // Save History & Drawing
-    saveHistory(); 
-    saveDrawing(); 
+    saveHistory();
+    saveDrawing();
 
-    // Reset states
     lastPoint.current = null;
     setStartPoint(null);
     setDrawingSnapshot(null);
-  }, [isDrawing, currentTool, drawingSnapshot, startPoint, applyCurrentToolSettings, isShapeFilled, saveHistory, saveDrawing]); // Removed getCoords
+  }, [isDrawing, currentTool, drawingSnapshot, startPoint, applyCurrentToolSettings, isShapeFilled, saveHistory, saveDrawing, drawArrow]);
 
   // Download Logic
   const capturePageAsImage = useCallback(async (pageToCapture: number): Promise<string | null> => {
@@ -1103,6 +1142,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose }) => {
                  <motion.button onClick={() => { setCurrentTool('line'); setIsDrawingMode(true); }} title="Line" className={`p-2 rounded flex justify-center items-center ${currentTool === 'line' ? 'bg-emerald-500 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><Minus size={18} /></motion.button>
                  <motion.button onClick={() => { setCurrentTool('rectangle'); setIsDrawingMode(true); }} title="Rectangle" className={`p-2 rounded flex justify-center items-center ${currentTool === 'rectangle' ? 'bg-emerald-500 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><RectangleHorizontal size={18} /></motion.button>
                  <motion.button onClick={() => { setCurrentTool('circle'); setIsDrawingMode(true); }} title="Circle" className={`p-2 rounded flex justify-center items-center ${currentTool === 'circle' ? 'bg-emerald-500 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><Circle size={18} /></motion.button>
+                 <motion.button onClick={() => { setCurrentTool('arrow'); setIsDrawingMode(true); }} title="Arrow" className={`p-2 rounded flex justify-center items-center ${currentTool === 'arrow' ? 'bg-emerald-500 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><ArrowUpRight size={18} /></motion.button>
             </div>
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               {QUICK_COLORS.map((color) => (
